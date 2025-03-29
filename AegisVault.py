@@ -2,8 +2,8 @@
 #SPDX-License-Identifier: Apache-2.0
 
 # Import necessary libraries for file handling, GUI operations, encryption, and hashing
-from os import getcwd, walk, makedirs, remove, rename
-from os.path import join, split, exists
+from os import getcwd, walk, makedirs, rename, unlink
+from os.path import join, split, exists, isfile, getsize
 from easygui import fileopenbox, diropenbox, ccbox, passwordbox, boolbox, filesavebox
 from hashlib import sha3_512
 from tkinter.messagebox import showwarning, showinfo
@@ -11,7 +11,7 @@ from tkinter import END, Listbox, Y, X, Tk, BOTTOM, HORIZONTAL, VERTICAL, RIGHT
 from tkinter.ttk import Scrollbar, Frame, Button
 from Crypto.Cipher.AES import new, MODE_GCM
 from Crypto.Protocol.KDF import scrypt
-from secrets import token_bytes
+from secrets import token_bytes, token_hex
 from linecache import getline, clearcache
 from shutil import rmtree
 from sys import exit
@@ -41,11 +41,7 @@ def act_txt(directorio: str | None = getcwd(), paths: list | None = None, delete
                 f.write(cifrar(password, open(i, 'rb').read()) + '\n')
                 # Optionally delete the original file and replace it with random data
                 if delete == False:
-                    with open(i, 'wb') as a:
-                        a.write(b'')  # Clear file contents
-                    with open(i, 'wb') as b:
-                        b.write(token_bytes())  # Add random bytes
-                    remove(i)  # Finally, remove the original file
+                    shred(i)
 
         # If both directory and delete options are set, remove the directory
         if directorio != False and delete == False:
@@ -57,6 +53,36 @@ def act_txt(directorio: str | None = getcwd(), paths: list | None = None, delete
     
     except Exception as e:
         showwarning("Error1", f"An error occurred while processing files: {str(e)}")
+
+def shred(path:str):
+    """
+    Shreds a file by overwriting its contents with random data multiple times and then deleting it.
+
+    Args:
+        path (str): The path to the file to be shredded.
+
+    Returns:
+        bool: True if the file was successfully shredded, False otherwise.
+    """
+
+    # Check if the file exists
+    if not isfile(path):
+        return False
+    
+    lenght = getsize(path)
+
+    # Overwrite the file with random data multiple times
+    for _ in range(3):
+        f = open(path, "wb")
+        data = token_bytes(lenght) # Generate random data of the same length as the file
+        f.write(data) # Write the random data to the file
+        f.close()
+    
+    name = token_hex(16) # Generate a random name for the file
+    rename(path, name)
+    unlink(name) # Delete the renamed file
+    return True
+
 
 def act_ventana_main_add(elementos:list) -> None:
     """
@@ -268,12 +294,8 @@ def delete_txt(items:list) -> None:
             if line not in items:
                 f.write(getline(ruta_file, line))
 
-    # Clear original file and save the temporary file with the new content
-    with open(ruta_file, "wb") as f:
-        f.write(b'')  
-        f.write(token_bytes())
-
-    remove(ruta_file)  # Remove the original file
+     
+    shred(ruta_file) # Remove the original file
     rename(ruta_file2, ruta_file)  # Rename the temporary file to the original file name
     clearcache()
 
@@ -380,11 +402,7 @@ def backup() -> None:
 
             opcion4 = boolbox('Do you want to delete the database backup?', 'Select', choices=('Yes', 'No'))
             if opcion4:
-                with open(ruta, 'wb') as ff:
-                    ff.write(b'')  # Clear backup file
-                with open(ruta, 'wb') as ff:
-                    ff.write(token_bytes())  # Add random bytes
-                remove(ruta)  # Delete the backup file
+                shred(ruta)
 
             showinfo('Restart', 'To apply changes, you must restart the program.')
             texto = None
